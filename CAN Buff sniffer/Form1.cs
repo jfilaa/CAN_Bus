@@ -3,7 +3,6 @@ using System.Linq;
 using System.Windows.Forms;
 using System.Threading;
 using System.IO.Ports;
-using System.Text.RegularExpressions;
 using System.IO;
 
 namespace CAN_Buff_sniffer
@@ -13,53 +12,6 @@ namespace CAN_Buff_sniffer
         public Form1()
         {
             InitializeComponent();
-        }
-
-        public class Ramec
-        {
-            /*
-            * Class for store CAN Bus packet
-            */
-            public UInt16 ID; // ID of CAN Bus packet
-            byte CTL; // len od Data
-            public byte[] Data; // Data
-            byte CRC; // CRC, not used
-            DateTime Cas; // Time of arrive packet
-
-            public Ramec(string Radek) // parse string from format "0x0000 01 02 03 04\r\n"
-            {
-                this.Cas = DateTime.Now; // Now arrived
-                this.ID = Convert.ToUInt16(Radek.Substring(Radek.IndexOf("0x") + 2, 4), 16); // get ID, from hex
-                Radek = Radek.Substring(7);
-                byte i = 0;
-                this.CTL = (byte)(Regex.Matches(Radek, " ").Count + 1); // get num of Data bytes
-                this.Data = new byte[this.CTL];
-                for (; i < this.CTL; i++) // parse data Bytes from hex
-                {
-                    this.Data[i] = Convert.ToByte(Radek.Substring(i * 3, 2), 16);
-                }
-            }
-
-            public override string ToString() // override ToString to format "0x0000 XX ..."
-            {
-                string Retezec = "0x" + this.ID.ToString("X4") + "\t"; // ID of CAN Bus packet
-                foreach (byte dato in this.Data) Retezec += dato.ToString("X2") + "\t"; // bin array to Hex (format "0A 0B 00")
-                return Retezec.Substring(0, Retezec.Length - 1); // remove last space (tab) from foreach
-            }
-
-            public string ToStringTime() // the same as ToString but with time "03.01.2016 18:24:43	0x0571	6F  41  00  01  01  00"
-            {
-                string Retezec = this.Cas.ToShortDateString() + " " + this.Cas.ToLongTimeString() + "\t0x" + this.ID.ToString("X4") + "\t";
-                foreach (byte dato in this.Data) Retezec += dato.ToString("X2") + "\t"; // bin array to Hex (format "0A 0B 00")
-                return Retezec.Substring(0, Retezec.Length - 1); // remove last space (tab) from foreach
-            }
-
-            public string ToStringTimeMs() // the same as ToString but with time with ms "03.01.2016 18:24:43:122	0x0571	6F  41  00  01  01  00"
-            {
-                string Retezec = this.Cas.ToShortDateString() + " " + this.Cas.ToLongTimeString() + ":" + this.Cas.Millisecond + "\t0x" + this.ID.ToString("X4") + "\t";
-                foreach (byte dato in this.Data) Retezec += dato.ToString("X2") + "\t"; // bin array to Hex (format "0A 0B 00")
-                return Retezec.Substring(0, Retezec.Length - 1); // remove last space (tab) from foreach
-            }
         }
 
         Thread vlakno;
@@ -78,6 +30,7 @@ namespace CAN_Buff_sniffer
                 Properties.Settings.Default.UseBlackList = UseBlackList.Checked;
                 Properties.Settings.Default.LogWithTime = LogWithTime.Checked;
                 Properties.Settings.Default.LogWithMs = LogWithMs.Checked;
+                Properties.Settings.Default.LogOnly = LogOnly.Checked;
                 Properties.Settings.Default.Save(); // save all options to Settings
                 MaBezet = true; // yes, it should run
                 vlakno = new Thread(Vlakno);
@@ -100,39 +53,67 @@ namespace CAN_Buff_sniffer
             UseBlackList.Checked = Properties.Settings.Default.UseBlackList;
             LogWithTime.Checked = Properties.Settings.Default.LogWithTime;
             LogWithMs.Checked = Properties.Settings.Default.LogWithMs;
+            LogOnly.Checked = Properties.Settings.Default.LogOnly;
         }
 
         string VIN = ""; // status string, now for VIN only
+        DateTime Time = new DateTime();
+        UInt32 Odometer = 0;
 
         bool FilterInsert(String Radek) // insert with filtering by WhiteList of BlackList if is enabled
         {
             Ramec ramec = new Ramec(Radek); // make new CAN Bus frame
             String retezec = "";
-            if (ramec.ID == 0x065F) // mh to bude VIN (oh, it's VIN, it need's special work)
+            switch (ramec.ID)
             {
-                byte[] pole;
-                switch (ramec.Data[0]) // first part of VIN
-                {
-                    case 0:
-                        pole = ramec.Data.Skip(5).Take(3).ToArray(); // take 3 bytes from 6st byte
-                        VIN = System.Text.Encoding.Default.GetString(pole);
-                        break;
-                    case 1:
-                        pole = ramec.Data.Skip(1).Take(7).ToArray(); // take 7 bytes from firts byte
-                        VIN = VIN.Substring(0, 3) + System.Text.Encoding.Default.GetString(pole); // replace midle part of VIN
-                        break;
-                    case 2:
-                        pole = ramec.Data.Skip(1).Take(7).ToArray(); // the same
-                        VIN = VIN.Substring(0, 3 + 7) + System.Text.Encoding.Default.GetString(pole); // replace last part of VIN
+                case 0x065F: // mh to bude VIN (oh, it's VIN, it need's special work)
+                    {
+                        byte[] pole;
+                        switch (ramec.Data[0]) // first part of VIN
+                        {
+                            case 0:
+                                pole = ramec.Data.Skip(5).Take(3).ToArray(); // take 3 bytes from 6st byte
+                                VIN = System.Text.Encoding.Default.GetString(pole);
+                                break;
+                            case 1:
+                                pole = ramec.Data.Skip(1).Take(7).ToArray(); // take 7 bytes from firts byte
+                                VIN = VIN.Substring(0, 3) + System.Text.Encoding.Default.GetString(pole); // replace midle part of VIN
+                                break;
+                            case 2:
+                                pole = ramec.Data.Skip(1).Take(7).ToArray(); // the same
+                                VIN = VIN.Substring(0, 3 + 7) + System.Text.Encoding.Default.GetString(pole); // replace last part of VIN
 
+                                Status.Invoke((MethodInvoker)delegate () // show VIN on GUI
+                                {
+                                    Status.Text = "VIN: " + VIN + ", odo: " + Odometer + " km, Time: " + Time.ToShortTimeString();
+                                });
+                                break;
+                            default:
+                                break;
+                        }
+                        break;
+                    }
+                case 0x065D: // oh, data from Odometer, date (sometimes) and time
+                    {
+                        Odometer = (UInt32)(ramec.Data[1] + ramec.Data[2] * 256 + (ramec.Data[3] & 0x0F) * 256 * 256);
+                        int Hour = (ramec.Data[5] & 0xF0) / 16 + (ramec.Data[6] & 1) * 16;
+                        int Min = (ramec.Data[6] & 0x7E) / 2;
+                        int Sec = (ramec.Data[7] & 0x1F) * 2 + (ramec.Data[6] & 0x80) / 128;
+                        int Year = ramec.Data[3] / 128 + (ramec.Data[4] & 0x07) * 128;
+                        int Month = (ramec.Data[4] & 0x78) / 8;
+                        int Day = (ramec.Data[4] & 0x80) / 128 + (ramec.Data[5] & 0x0F) * 2;
+                        if (Year == 0) Year = 1;
+                        if (Month == 0) Month = 1;
+                        if (Day == 0) Day = 1;
+                        Time = new DateTime(Year, Month, Day, Hour, Min, Sec);
                         Status.Invoke((MethodInvoker)delegate () // show VIN on GUI
                         {
-                            Status.Text = "VIN: " + VIN;
+                            Status.Text = "VIN: " + VIN + ", odo: " + Odometer + " km, Time: " + Time.ToLongTimeString();
                         });
                         break;
-                    default:
-                        break;
-                }
+                    }
+                default:
+                    break;
             }
             if (SouborRaw != null) // is file avaliable for writing?
             {
@@ -174,7 +155,7 @@ namespace CAN_Buff_sniffer
             { }
             try
             {
-                SouborFiltered = new StreamWriter(Name + ".csv", true); // append is enabled
+                if (!LogOnly.Checked) SouborFiltered = new StreamWriter(Name + ".csv", true); // append is enabled
             }
             catch (Exception ex) // ops, something is wrong
             { }
@@ -211,11 +192,24 @@ namespace CAN_Buff_sniffer
                         try
                         {
                             string Radek = COM.ReadLine();
-                            //Ramce.Add(new Ramec(Radek));
-                            listBox1.Invoke((MethodInvoker)delegate () // insert arrived data to GUI from thread
+                            if (!LogOnly.Checked)
                             {
-                                FilterInsert(Radek);
-                            });
+                                //Ramce.Add(new Ramec(Radek));
+                                listBox1.Invoke((MethodInvoker)delegate () // insert arrived data to GUI from thread
+                                {
+                                    FilterInsert(Radek);
+                                });
+                            }
+                            else
+                            {
+                                if (SouborRaw != null) // is file avaliable for writing?
+                                {
+                                    DateTime now = DateTime.Now;
+                                    // log all arrived CAN Bus data to file xxxRaw
+                                    Radek = now.ToShortDateString() + " " + now.ToLongTimeString() + "\t" + Radek.Replace(" ", "\t");
+                                    SouborRaw.WriteLine(Radek);
+                                }
+                            }
                         }
                         catch (TimeoutException ex) // no ne line, wait for next time
                         { }
@@ -236,12 +230,42 @@ namespace CAN_Buff_sniffer
                 OpenClose.Text = "Open";
             });
             if ((COM != null) || COM.IsOpen) COM.Close(); // if is serial port open, than close it
-            if (SouborRaw !=null) SouborRaw.Close(); // if is file used, than close it
-            if (SouborFiltered != null) SouborFiltered.Close(); // if is file used, than close it
-            MaBezet = false;
+            if (SouborRaw != null)
+            {
+                SouborRaw.Flush();
+                SouborRaw.Close(); // if is file used, than close it
+            }
+            if (SouborFiltered != null)
+            {
+                SouborFiltered.Flush();
+                SouborFiltered.Close(); // if is file used, than close it
+                MaBezet = false;
+            }
         }
 
         private void button2_Click(object sender, EventArgs e)
+        {
+            OpenFileDialog SouborName = new OpenFileDialog();
+            SouborName.ShowDialog();
+            /*li
+
+            StreamReader Soubor = new StreamReader(SouborName.FileName);
+            try
+            {
+                string Radek = "";
+                while ((Radek = Soubor.ReadLine()) != null)
+                {
+                    int zacatek = Radek.IndexOf("\t") + 1;
+                    String IDString = Radek.Substring(zacatek, 6);
+
+                }
+            }
+            catch (Exception ex)
+            { }
+            Soubor.Close();*/
+        }
+
+        void Test()
         {
             // Few test CAN Bus packets
             String[] StrRamcu = new string[]
@@ -252,16 +276,18 @@ namespace CAN_Buff_sniffer
                 "0x042B 19 01 00 00 00 00",
                 "0x0000 00 01 02 03 04 05 06 07",
                 "0x065F 00 00 00 00 00 54 4D 42",  // VIN, first part
-                "0x065F 01 42 00 00 00 00 00 35", // next part of VIN
-                "0x065F 02 32 00 00 00 00 00 00" // and last part of VIN
+                "0x065F 01 42 30 30 30 30 30 35", // next part of VIN
+                "0x065F 02 32 30 30 30 30 30 30", // and last part of VIN
+                "0x065D	F1 2E EE 02 00 D0 1C 09" // 192046 km, 13:14:18
+                //"0x065D	5E 62 38 02 00 00 E7 1D"  // 16:51:59
 
             };
             if (FileName.Text == "") OpenFiles(); // open files
             else OpenFiles(FileName.Text);
             Whitelist = new UInt16[] { 0xFFFF }; // fill WhiteList by 0xFFFF (only 0xFFFF will by listed)
             Blacklist = new UInt16[] { 0x2C3 }; // fill BlackList by 0x2C3 (only 0x2C3 will be ignored)
-            for (int i = 0; i < 10; i++) // test fill of data
-            {
+            /*for (int i = 0; i < 10; i++) // test fill of data
+            {*/
                 foreach (string Radek in StrRamcu)
                 {
                     FilterInsert(Radek);
@@ -269,9 +295,14 @@ namespace CAN_Buff_sniffer
                     string debug = ramec.ToStringTime();
                     Thread.Sleep(100); // slower, for GUI test
                 }
-            }//*/
+            //}//*/
 
             //listBox1.Items.Add(new Ramec(Radek));//Ramce.Add(new Ramec(Str));
+        }
+
+        private void button1_Click_1(object sender, EventArgs e)
+        {
+            Test();
         }
     }
 }

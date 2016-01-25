@@ -82,5 +82,17 @@ namespace CAN_Buff_sniffer.Properties {
                 this["LogWithMs"] = value;
             }
         }
+        
+        [global::System.Configuration.UserScopedSettingAttribute()]
+        [global::System.Diagnostics.DebuggerNonUserCodeAttribute()]
+        [global::System.Configuration.DefaultSettingValueAttribute("False")]
+        public bool LogOnly {
+            get {
+                return ((bool)(this["LogOnly"]));
+            }
+            set {
+                this["LogOnly"] = value;
+            }
+        }
     }
 }
