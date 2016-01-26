@@ -14,11 +14,30 @@ public class Ramec
 
     public Ramec(string Radek) // parse string from format "0x0000 01 02 03 04\r\n"
     {
+        // 24.01.2016 8:48:02	0x0439	0B	31	00	00	00	00
+        // 24.01.2016 8:48:02:123	0x0439	0B	31	00	00	00	00
+        // 0x0439	0B	31	00	00	00	00
         this.Cas = DateTime.Now; // Now arrived
+        string timeString; 
+        if (Radek.Contains(":"))
+        {
+            timeString = Radek.Substring(0, Radek.IndexOf("\t"));
+            Radek = Radek.Substring(Radek.IndexOf("\t") + 1);
+            int ms = 0;
+            string[] array = timeString.Split(':');
+            if ((array.Length - 1) == 3)
+            {                
+                timeString = timeString.Substring(0,timeString.LastIndexOf(":"));
+                int.TryParse(array[3], out ms);
+            }
+            this.Cas = DateTime.Parse(timeString);
+            this.Cas = this.Cas.AddMilliseconds(ms);
+        }
         this.ID = Convert.ToUInt16(Radek.Substring(Radek.IndexOf("0x") + 2, 4), 16); // get ID, from hex
         Radek = Radek.Substring(7);
         byte i = 0;
         this.CTL = (byte)(Regex.Matches(Radek, " ").Count + 1); // get num of Data bytes
+        if (this.CTL == 1) this.CTL = (byte)(Regex.Matches(Radek, "\t").Count + 1); // get num of Data bytes
         this.Data = new byte[this.CTL];
         for (; i < this.CTL; i++) // parse data Bytes from hex
         {
@@ -45,5 +64,10 @@ public class Ramec
         string Retezec = this.Cas.ToShortDateString() + " " + this.Cas.ToLongTimeString() + ":" + this.Cas.Millisecond.ToString("3") + "\t0x" + this.ID.ToString("X4") + "\t";
         foreach (byte dato in this.Data) Retezec += dato.ToString("X2") + "\t"; // bin array to Hex (format "0A 0B 00")
         return Retezec.Substring(0, Retezec.Length - 1); // remove last space (tab) from foreach
+    }
+
+    public DateTime GetTime()
+    {
+        return Cas;
     }
 }

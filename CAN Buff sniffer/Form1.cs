@@ -59,6 +59,12 @@ namespace CAN_Buff_sniffer
         string VIN = ""; // status string, now for VIN only
         DateTime Time = new DateTime();
         UInt32 Odometer = 0;
+        UInt16 RPM;
+        float BateryVoltage;
+        float Speed;
+        float CoolingTemp;
+        bool LeftWinker = false;
+        bool RightWinker = false;
 
         bool FilterInsert(String Radek) // insert with filtering by WhiteList of BlackList if is enabled
         {
@@ -66,7 +72,48 @@ namespace CAN_Buff_sniffer
             String retezec = "";
             switch (ramec.ID)
             {
-                case 0x065F: // mh to bude VIN (oh, it's VIN, it need's special work)
+                case 0x470: // doors state
+                            // 0x470 00 XX 00 00 00 – kontakty dveří
+                    {
+
+                        break;
+                    }
+                case 0x02C1: // winkers state
+                             // 0x2C1 0X 00 00 00 04 – blinkry
+                    {
+                        if ((ramec.Data[0] & 1) > 1) LeftWinker = true;
+                        if ((ramec.Data[0] & 2) > 1) RightWinker = true;
+                        break;
+                    }
+                case 0x0571: // Batery Voltage
+                             // 0x571 XX 00 00 00 00 00 – napětí akumulátoru[V]
+                    {
+                        BateryVoltage = (ramec.Data[0] / 2 + 50) / 10;
+                        break;
+                    }
+                case 0x351: // Speed
+                            // 0x351 00 XX YY 00 00 00 00 00 - rychlost
+                    {
+                        Speed = (ramec.Data[2] * 256 + ramec.Data[1]) / 201;
+                        break;
+                    }
+                case 0x359: // Speed
+                            //0x359 00 XX YY 00 00 00 00 00 - rychlost
+                    {
+                        Speed = (ramec.Data[2] * 256 + ramec.Data[1]) / 201;
+                        break;
+                    }
+                case 0x35B: // RPM, Cooling Temp
+                            // 0x35B 00 XX YY ZZ 00 00 00 – otáčky motoru + teplota vody
+                    {
+                        if (ramec.Data[0] != 0x07)
+                        {
+                            RPM = (UInt16)((ramec.Data[2] * 256 + ramec.Data[1]) / 4);
+                            CoolingTemp = ramec.Data[3] - 10;
+                        }
+                        break;
+                    }
+                case 0x65F: // mh to bude VIN (oh, it's VIN, it need's special work)
                     {
                         byte[] pole;
                         switch (ramec.Data[0]) // first part of VIN
@@ -102,7 +149,7 @@ namespace CAN_Buff_sniffer
                         int Year = ramec.Data[3] / 128 + (ramec.Data[4] & 0x07) * 128;
                         int Month = (ramec.Data[4] & 0x78) / 8;
                         int Day = (ramec.Data[4] & 0x80) / 128 + (ramec.Data[5] & 0x0F) * 2;
-                        if (Year == 0) Year = 1;
+                        if (Year == 0) Year = 2000; // if date not supported by car the fill 01.01.2000
                         if (Month == 0) Month = 1;
                         if (Day == 0) Day = 1;
                         Time = new DateTime(Year, Month, Day, Hour, Min, Sec);
@@ -247,22 +294,7 @@ namespace CAN_Buff_sniffer
         {
             OpenFileDialog SouborName = new OpenFileDialog();
             SouborName.ShowDialog();
-            /*li
-
-            StreamReader Soubor = new StreamReader(SouborName.FileName);
-            try
-            {
-                string Radek = "";
-                while ((Radek = Soubor.ReadLine()) != null)
-                {
-                    int zacatek = Radek.IndexOf("\t") + 1;
-                    String IDString = Radek.Substring(zacatek, 6);
-
-                }
-            }
-            catch (Exception ex)
-            { }
-            Soubor.Close();*/
+            CanBus can = new CanBus(new StreamReader(SouborName.FileName));
         }
 
         void Test()
@@ -302,7 +334,12 @@ namespace CAN_Buff_sniffer
 
         private void button1_Click_1(object sender, EventArgs e)
         {
-            Test();
+            OpenFileDialog SouborName = new OpenFileDialog();
+            SouborName.ShowDialog();
+            CanBus can = new CanBus();
+            can.file = new StreamReader(SouborName.FileName);
+            //can.Test();
+            can.fill();
         }
     }
 }
