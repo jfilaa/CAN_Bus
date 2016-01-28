@@ -18,21 +18,7 @@ public class Ramec
         // 24.01.2016 8:48:02:123	0x0439	0B	31	00	00	00	00
         // 0x0439	0B	31	00	00	00	00
         this.Cas = DateTime.Now; // Now arrived
-        string timeString; 
-        if (Radek.Contains(":"))
-        {
-            timeString = Radek.Substring(0, Radek.IndexOf("\t"));
-            Radek = Radek.Substring(Radek.IndexOf("\t") + 1);
-            int ms = 0;
-            string[] array = timeString.Split(':');
-            if ((array.Length - 1) == 3)
-            {                
-                timeString = timeString.Substring(0,timeString.LastIndexOf(":"));
-                int.TryParse(array[3], out ms);
-            }
-            this.Cas = DateTime.Parse(timeString);
-            this.Cas = this.Cas.AddMilliseconds(ms);
-        }
+        Radek = (string)(CarInterface.GrepDataString(Radek)).data;
         this.ID = Convert.ToUInt16(Radek.Substring(Radek.IndexOf("0x") + 2, 4), 16); // get ID, from hex
         Radek = Radek.Substring(7);
         byte i = 0;

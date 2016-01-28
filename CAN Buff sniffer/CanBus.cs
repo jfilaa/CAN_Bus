@@ -7,8 +7,7 @@ using System.IO;
 using System.IO.Ports;
 using System.Windows.Forms;
 using System.Diagnostics;
-
-class CanBus
+class CanBus : CarInterface
 {
     public enum WinkerState
     {
@@ -18,50 +17,31 @@ class CanBus
         Both = 3
     };
 
-    class Value
+    public struct Distance
     {
-        public DateTime date;
-        public object data;
+        public byte RearLeft;
+        public byte RearCenterLeft;
+        public byte RearCenterRight;
+        public byte RearRight;
 
-        public Value()
-        {
-        }
-
-        public Value(DateTime date, object data)
-        {
-            this.date = date;
-            this.data = data;
-        }
-    }
-
-    enum Source
-    {
-        SerialPort,
-        File,
-    }
+        public byte FrontLeft;
+        public byte FrontCenterLeft;
+        public byte FrontCenterRight;
+        public byte FrontRight;
+    };
 
     string VIN = ""; // status string, now for VIN only
     bool VIN_Ready = false;
-    DateTime Time = new DateTime();
     UInt32 Odometer = 0;
     UInt16 RPM;
     float BateryVoltage;
-    float Speed;
     float CoolingTemp;
     WinkerState winkers = WinkerState.None;
     WinkerState winkersPrevious = WinkerState.None;
-    bool Run = true;
-    Source source;
-    Thread thread;
-
-    SerialPort port;
-    public StreamReader file;
-
     Ramec ramec;
-    string line;
-
-    List<Ramec> listOfFrame = new List<Ramec>();
-    List<Value> winkerChangeList = new List<Value>();
+    Distance distance;
+    public List<Ramec> listOfFrame = new List<Ramec>();
+    public List<Value> winkerChangeList = new List<Value>();
 
     public CanBus()
     {
@@ -99,11 +79,6 @@ class CanBus
         return VIN;
     }
 
-    public DateTime GetTime()
-    {
-        return Time;
-    }
-
     public UInt32 GetOdo()
     {
         return Odometer;
@@ -124,14 +99,17 @@ class CanBus
         return CoolingTemp;
     }
 
-    /*public Value WaitForWinkerChange_Blocking()
+    public Value WaitForWinkerChange_Blocking()
     {
+        Value value;
         WinkerState state;
         while ((state = GetWinkerStatus()) == WinkerState.None) { }
-        return new Value(GetTime(), state);
-    }*/
+        value.date = GetTime();
+        value.data = state;
+        return value;
+    }
 
-    public void fill()
+public void fill()
     {
         long StopBytes = 0;
         var watch = Stopwatch.StartNew();
@@ -152,13 +130,16 @@ class CanBus
         watch.Stop();
         var elapsedMs = watch.ElapsedMilliseconds;
 
-        MessageBox.Show("Loaded " + listOfFrame.Count() + " items\n"
+        MessageBox.Show("Loaded " + listOfFrame.Count + " items\n"
             + "Size is " + Math.Round(((long)(StopBytes - StartBytes)) / 1024.0 / 1024.0, 2) + " MB\n"
             + "Loading time is " + elapsedMs / 1000 + " sec", "Loaded", MessageBoxButtons.OK, MessageBoxIcon.Information);
     }
 
     public void Test()
     {
+        long StopBytes = 0;
+        var watch = Stopwatch.StartNew();
+        long StartBytes = System.GC.GetTotalMemory(true);
         while (true) // work to end of times
         {
             line = file.ReadLine();
@@ -170,17 +151,13 @@ class CanBus
             ramec = new Ramec(line);
             ParseFrame(ramec);
         }
-    }
+        GC.KeepAlive(listOfFrame);
+        watch.Stop();
+        var elapsedMs = watch.ElapsedMilliseconds;
 
-    public void Start()
-    {
-        Run = true;
-    }
-
-    public void Abort()
-    {
-        Run = false;
-        thread.Abort();
+        MessageBox.Show("Loaded " + winkerChangeList.Count + " items\n"
+            + "Size is " + Math.Round(((long)(StopBytes - StartBytes)) / 1024.0, 2) + " kB\n"
+            + "Loading time is " + elapsedMs / 1000 + " sec", "Loaded", MessageBoxButtons.OK, MessageBoxIcon.Information);
     }
 
     void proc()
@@ -198,6 +175,7 @@ class CanBus
                             Run = false;
                             break;
                         }
+                        if (LogFile != null) LogFile.WriteLine(line);
                         ramec = new Ramec(line);
                         counter++;
                         ParseFrame(ramec);
@@ -219,6 +197,7 @@ class CanBus
                     while (Run) // work to end of times
                     {
                         ramec = new Ramec(port.ReadLine());
+                        if (LogFile != null) LogFile.WriteLine(line);
                         ParseFrame(ramec);
                     }
                     break;
@@ -226,7 +205,11 @@ class CanBus
             default:
                 break;
         }
-        
+        if (LogFile != null)
+        {
+            LogFile.Flush();
+            LogFile.Close();
+        }
     }
 
     public void ParseFrame(Ramec ramec) 
@@ -242,14 +225,16 @@ class CanBus
             case 0x02C1: // winkers state
                          // 0x2C1 0X 00 00 00 04 – blinkry
                 {
-                    winkersPrevious = winkers;
+                    winkers = WinkerState.None;
                     if ((ramec.Data[0] & 1) > 1) winkers = WinkerState.LeftWinker;
-                    else if ((ramec.Data[0] & 2) > 1) winkers = WinkerState.RightWinker;
-                    else if (((ramec.Data[0] & 1) > 1) && ((ramec.Data[0] & 2) > 1)) winkers = WinkerState.Both;
-                    else winkers = WinkerState.None;
+                    if ((ramec.Data[0] & 2) > 1) winkers = WinkerState.RightWinker;
                     if (winkersPrevious != winkers)
                     {
-                        winkerChangeList.Add(new Value(ramec.GetTime(), winkers));
+                        Value value;
+                        value.date = GetTime();
+                        value.data = winkers;
+                        winkerChangeList.Add(value);
+                        winkersPrevious = winkers;
                     }
                     break;
                 }
@@ -279,6 +264,18 @@ class CanBus
                         RPM = (UInt16)((ramec.Data[2] * 256 + ramec.Data[1]) / 4);
                         CoolingTemp = ramec.Data[3] - 10;
                     }
+                    break;
+                }
+            case 0x054B: // get distance from parking sensors
+                {
+                    distance.FrontLeft = ramec.Data[0];
+                    distance.FrontRight = ramec.Data[1];
+                    distance.RearLeft = ramec.Data[2];
+                    distance.RearRight = ramec.Data[3];
+                    distance.FrontLeft = ramec.Data[4];
+                    distance.FrontRight = ramec.Data[5];
+                    distance.RearLeft = ramec.Data[6];
+                    distance.RearRight = ramec.Data[7];
                     break;
                 }
             case 0x65F: // mh to bude VIN (oh, it's VIN, it need's special work)

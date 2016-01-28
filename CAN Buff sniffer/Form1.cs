@@ -21,6 +21,9 @@ namespace CAN_Buff_sniffer
         UInt16[] Whitelist = new UInt16[] {  }; // array of whitelisted CAN Bus packets
         UInt16[] Blacklist = new UInt16[] { 0x065F }; // array of blacklisted CAN Bus packets
 
+        GPSReceiver gps = new GPSReceiver();
+        CanBus can = new CanBus();
+
         private void button1_Click(object sender, EventArgs e)
         {
             if (!MaBezet) // is running?
@@ -336,10 +339,44 @@ namespace CAN_Buff_sniffer
         {
             OpenFileDialog SouborName = new OpenFileDialog();
             SouborName.ShowDialog();
-            CanBus can = new CanBus();
             can.file = new StreamReader(SouborName.FileName);
-            //can.Test();
-            can.fill();
+            can.Test();
+        }
+
+        private void button3_Click(object sender, EventArgs e)
+        {
+            OpenFileDialog SouborName = new OpenFileDialog();
+            SouborName.ShowDialog();
+            gps.file = new StreamReader(SouborName.FileName);
+            gps.Test();
+        }
+
+        private void button4_Click(object sender, EventArgs e)
+        {
+            CanBus.WinkerState state = CanBus.WinkerState.None;
+            DateTime StartWinking = new DateTime();
+            DateTime StopWinking;
+            if ((gps.PositionList.Count > 0) && (can.winkerChangeList.Count) > 0)
+            {
+                foreach (CarInterface.Value winkerState in can.winkerChangeList)
+                {
+                    if (((CanBus.WinkerState)winkerState.data) != CanBus.WinkerState.None)
+                    {
+                       StartWinking = winkerState.date;
+                        state = (CanBus.WinkerState)winkerState.data;
+                    }
+                    else if (state != CanBus.WinkerState.None)
+                    {
+                        StopWinking = winkerState.date;
+                        // search GPS data for winking
+                        int Start = gps.PositionList.FindIndex(x => x.date.CompareTo(StartWinking) == 0);
+                        if (Start != -1)
+                        {
+
+                        }
+                    }
+                }
+            }
         }
     }
 }

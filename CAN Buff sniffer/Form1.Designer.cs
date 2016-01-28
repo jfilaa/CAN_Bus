@@ -33,15 +33,17 @@
             this.UseWhiteList = new System.Windows.Forms.CheckBox();
             this.UseBlackList = new System.Windows.Forms.CheckBox();
             this.groupBox1 = new System.Windows.Forms.GroupBox();
+            this.button3 = new System.Windows.Forms.Button();
+            this.LogOnly = new System.Windows.Forms.CheckBox();
+            this.button1 = new System.Windows.Forms.Button();
+            this.button2 = new System.Windows.Forms.Button();
             this.FileName = new System.Windows.Forms.TextBox();
             this.LogWithMs = new System.Windows.Forms.CheckBox();
             this.LogWithTime = new System.Windows.Forms.CheckBox();
             this.groupBox2 = new System.Windows.Forms.GroupBox();
-            this.button2 = new System.Windows.Forms.Button();
             this.listBox1 = new System.Windows.Forms.ListBox();
             this.Status = new System.Windows.Forms.Label();
-            this.button1 = new System.Windows.Forms.Button();
-            this.LogOnly = new System.Windows.Forms.CheckBox();
+            this.button4 = new System.Windows.Forms.Button();
             this.groupBox1.SuspendLayout();
             this.groupBox2.SuspendLayout();
             this.SuspendLayout();
@@ -86,6 +88,8 @@
             // 
             // groupBox1
             // 
+            this.groupBox1.Controls.Add(this.button4);
+            this.groupBox1.Controls.Add(this.button3);
             this.groupBox1.Controls.Add(this.LogOnly);
             this.groupBox1.Controls.Add(this.button1);
             this.groupBox1.Controls.Add(this.button2);
@@ -102,6 +106,46 @@
             this.groupBox1.TabIndex = 5;
             this.groupBox1.TabStop = false;
             this.groupBox1.Text = "Config";
+            // 
+            // button3
+            // 
+            this.button3.Location = new System.Drawing.Point(194, 46);
+            this.button3.Name = "button3";
+            this.button3.Size = new System.Drawing.Size(75, 23);
+            this.button3.TabIndex = 10;
+            this.button3.Text = "Test GPS";
+            this.button3.UseVisualStyleBackColor = true;
+            this.button3.Click += new System.EventHandler(this.button3_Click);
+            // 
+            // LogOnly
+            // 
+            this.LogOnly.AutoSize = true;
+            this.LogOnly.Location = new System.Drawing.Point(273, 50);
+            this.LogOnly.Name = "LogOnly";
+            this.LogOnly.Size = new System.Drawing.Size(66, 17);
+            this.LogOnly.TabIndex = 9;
+            this.LogOnly.Text = "Log only";
+            this.LogOnly.UseVisualStyleBackColor = true;
+            // 
+            // button1
+            // 
+            this.button1.Location = new System.Drawing.Point(113, 46);
+            this.button1.Name = "button1";
+            this.button1.Size = new System.Drawing.Size(75, 23);
+            this.button1.TabIndex = 8;
+            this.button1.Text = "Test CAN";
+            this.button1.UseVisualStyleBackColor = true;
+            this.button1.Click += new System.EventHandler(this.button1_Click_1);
+            // 
+            // button2
+            // 
+            this.button2.Location = new System.Drawing.Point(6, 46);
+            this.button2.Name = "button2";
+            this.button2.Size = new System.Drawing.Size(101, 23);
+            this.button2.TabIndex = 1;
+            this.button2.Text = "Load from file";
+            this.button2.UseVisualStyleBackColor = true;
+            this.button2.Click += new System.EventHandler(this.button2_Click);
             // 
             // FileName
             // 
@@ -140,16 +184,6 @@
             this.groupBox2.TabStop = false;
             this.groupBox2.Text = "Data";
             // 
-            // button2
-            // 
-            this.button2.Location = new System.Drawing.Point(6, 46);
-            this.button2.Name = "button2";
-            this.button2.Size = new System.Drawing.Size(101, 23);
-            this.button2.TabIndex = 1;
-            this.button2.Text = "Load from file";
-            this.button2.UseVisualStyleBackColor = true;
-            this.button2.Click += new System.EventHandler(this.button2_Click);
-            // 
             // listBox1
             // 
             this.listBox1.Dock = System.Windows.Forms.DockStyle.Fill;
@@ -168,25 +202,15 @@
             this.Status.TabIndex = 7;
             this.Status.Text = "VIN: ";
             // 
-            // button1
+            // button4
             // 
-            this.button1.Location = new System.Drawing.Point(113, 46);
-            this.button1.Name = "button1";
-            this.button1.Size = new System.Drawing.Size(75, 23);
-            this.button1.TabIndex = 8;
-            this.button1.Text = "Test";
-            this.button1.UseVisualStyleBackColor = true;
-            this.button1.Click += new System.EventHandler(this.button1_Click_1);
-            // 
-            // LogOnly
-            // 
-            this.LogOnly.AutoSize = true;
-            this.LogOnly.Location = new System.Drawing.Point(194, 50);
-            this.LogOnly.Name = "LogOnly";
-            this.LogOnly.Size = new System.Drawing.Size(66, 17);
-            this.LogOnly.TabIndex = 9;
-            this.LogOnly.Text = "Log only";
-            this.LogOnly.UseVisualStyleBackColor = true;
+            this.button4.Location = new System.Drawing.Point(113, 75);
+            this.button4.Name = "button4";
+            this.button4.Size = new System.Drawing.Size(156, 23);
+            this.button4.TabIndex = 11;
+            this.button4.Text = "Get Winkers map";
+            this.button4.UseVisualStyleBackColor = true;
+            this.button4.Click += new System.EventHandler(this.button4_Click);
             // 
             // Form1
             // 
@@ -223,6 +247,8 @@
         private System.Windows.Forms.Button button2;
         private System.Windows.Forms.Button button1;
         private System.Windows.Forms.CheckBox LogOnly;
+        private System.Windows.Forms.Button button3;
+        private System.Windows.Forms.Button button4;
     }
 }
 
