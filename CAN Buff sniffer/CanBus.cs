@@ -17,6 +17,100 @@ class CanBus : CarInterface
         Both = 3
     };
 
+    public class CAN_0x02C1
+    {
+        public WinkerState winkerState;
+
+        public CAN_0x02C1(WinkerState winkerState)
+        {
+            this.winkerState = winkerState;
+        }
+    }
+
+    public class CAN_0x0571
+    {
+        float bateryVoltage;
+
+        public CAN_0x0571(float bateryVoltage)
+        {
+            this.bateryVoltage = bateryVoltage;
+        }
+    }
+
+    public class CAN_0x351
+    {
+        float speed;
+
+        public CAN_0x351(float speed)
+        {
+            this.speed = speed;
+        }
+    }
+
+    public class CAN_0x359
+    {
+        float speed;
+
+        public CAN_0x359(float speed)
+        {
+            this.speed = speed;
+        }
+    }
+
+    public class CAN_0x35B
+    {
+        UInt16 RPM;
+        float CoolingTemp;
+
+        public CAN_0x35B(UInt16 RPM, float CoolingTemp)
+        {
+            this.RPM = RPM;
+            this.CoolingTemp = CoolingTemp;
+        }
+    }
+
+    public class CAN_0x054B
+    {
+        Distance distance;
+
+        public CAN_0x054B(Distance distance)
+        {
+            this.distance = distance;
+        }
+    }
+
+    public class CAN_0x065F
+    {
+        string partOfVIN;
+
+        public CAN_0x065F(string partOfVIN)
+        {
+            this.partOfVIN = partOfVIN;
+        }
+    }
+
+    public class CAN_0x065D
+    {
+        DateTime Time;
+        uint Odometer;
+
+        public CAN_0x065D(DateTime Time, uint Odometer)
+        {
+            this.Time = Time;
+            this.Odometer = Odometer;
+        }
+    }
+
+    public class VIN_Code
+    {
+        string vin;
+
+        public VIN_Code(string vin)
+        {
+            this.vin = vin;
+        }
+    }
+
     public struct Distance
     {
         public byte RearLeft;
@@ -33,13 +127,13 @@ class CanBus : CarInterface
     string VIN = ""; // status string, now for VIN only
     bool VIN_Ready = false;
     UInt32 Odometer = 0;
-    UInt16 RPM;
-    float BateryVoltage;
-    float CoolingTemp;
     WinkerState winkers = WinkerState.None;
     WinkerState winkersPrevious = WinkerState.None;
     Ramec ramec;
     Distance distance;
+    UInt16 RPM;
+    float CoolingTemp;
+    float bateryVoltage;
     public List<Ramec> listOfFrame = new List<Ramec>();
     public List<Value> winkerChangeList = new List<Value>();
 
@@ -91,7 +185,7 @@ class CanBus : CarInterface
 
     public float GetBateryVoltage()
     {
-        return BateryVoltage;
+        return bateryVoltage;
     }
 
     public float GetCoolingTemperature()
@@ -212,8 +306,9 @@ public void fill()
         }
     }
 
-    public void ParseFrame(Ramec ramec) 
+    public object ParseFrame(Ramec ramec) 
     {
+        object result = null;
         switch (ramec.ID)
         {
             case 0x470: // doors state
@@ -228,6 +323,8 @@ public void fill()
                     winkers = WinkerState.None;
                     if ((ramec.Data[0] & 1) > 1) winkers = WinkerState.LeftWinker;
                     if ((ramec.Data[0] & 2) > 1) winkers = WinkerState.RightWinker;
+
+                    result = new CAN_0x02C1(winkers);
                     if (winkersPrevious != winkers)
                     {
                         Value value;
@@ -241,19 +338,24 @@ public void fill()
             case 0x0571: // Batery Voltage
                          // 0x571 XX 00 00 00 00 00 – napětí akumulátoru[V]
                 {
-                    BateryVoltage = (ramec.Data[0] / 2 + 50) / 10;
+                    //BateryVoltage = (ramec.Data[0] / 2 + 50) / 10;
+                    result = new CAN_0x0571((ramec.Data[0] / 2 + 50) / 10);
                     break;
                 }
             case 0x351: // Speed
                         // 0x351 00 XX YY 00 00 00 00 00 - rychlost
                 {
-                    Speed = (ramec.Data[2] * 256 + ramec.Data[1]) / 201;
+                    //Speed = (ramec.Data[2] * 256 + ramec.Data[1]) / 201;
+                    speed = BitConverter.ToUInt16(ramec.Data, 1) / 201;
+                    result = new CAN_0x351(speed);
                     break;
                 }
             case 0x359: // Speed
                         //0x359 00 XX YY 00 00 00 00 00 - rychlost
                 {
-                    Speed = (ramec.Data[2] * 256 + ramec.Data[1]) / 201;
+                    //Speed = (ramec.Data[2] * 256 + ramec.Data[1]) / 201;
+                    speed = BitConverter.ToUInt16(ramec.Data, 1) / 201;
+                    result = new CAN_0x359(speed);
                     break;
                 }
             case 0x35B: // RPM, Cooling Temp
@@ -261,8 +363,10 @@ public void fill()
                 {
                     if (ramec.Data[0] != 0x07)
                     {
-                        RPM = (UInt16)((ramec.Data[2] * 256 + ramec.Data[1]) / 4);
+                        //RPM = (UInt16)((ramec.Data[2] * 256 + ramec.Data[1]) / 4);
+                        RPM = (UInt16)(BitConverter.ToUInt16(ramec.Data, 1) / 4);
                         CoolingTemp = ramec.Data[3] - 10;
+                        result = new CAN_0x35B(RPM, CoolingTemp);
                     }
                     break;
                 }
@@ -276,6 +380,7 @@ public void fill()
                     distance.FrontRight = ramec.Data[5];
                     distance.RearLeft = ramec.Data[6];
                     distance.RearRight = ramec.Data[7];
+                    result = new CAN_0x054B(distance);
                     break;
                 }
             case 0x65F: // mh to bude VIN (oh, it's VIN, it need's special work)
@@ -287,12 +392,15 @@ public void fill()
                             VIN_Ready = false;
                             pole = ramec.Data.Skip(5).Take(3).ToArray(); // take 3 bytes from 6st byte
                             VIN = System.Text.Encoding.Default.GetString(pole);
+                            result = new CAN_0x065F(VIN);
                             break;
                         case 1:
                             if (VIN.Length >= 3)
                             {
                                 pole = ramec.Data.Skip(1).Take(7).ToArray(); // take 7 bytes from firts byte
-                                VIN = VIN.Substring(0, 3) + System.Text.Encoding.Default.GetString(pole); // replace midle part of VIN
+                                string partOfVin = System.Text.Encoding.Default.GetString(pole);
+                                VIN = VIN.Substring(0, 3) + partOfVin; // replace midle part of VIN
+                                result = new CAN_0x065F(partOfVin);
                             }
                             break;
                         case 2:
@@ -301,6 +409,7 @@ public void fill()
                                 pole = ramec.Data.Skip(1).Take(7).ToArray(); // the same
                                 VIN = VIN.Substring(0, 3 + 7) + System.Text.Encoding.Default.GetString(pole); // replace last part of VIN
                                 VIN_Ready = true;
+                                result = new VIN_Code(VIN);
                             }
                             break;
                         default:
@@ -310,7 +419,6 @@ public void fill()
                 }
             case 0x065D: // oh, data from Odometer, date (sometimes) and time
                 {
-                    Odometer = (UInt32)(ramec.Data[1] + ramec.Data[2] * 256 + (ramec.Data[3] & 0x0F) * 256 * 256);
                     int Hour = (ramec.Data[5] & 0xF0) / 16 + (ramec.Data[6] & 1) * 16;
                     int Min = (ramec.Data[6] & 0x7E) / 2;
                     int Sec = (ramec.Data[7] & 0x1F) * 2 + (ramec.Data[6] & 0x80) / 128;
@@ -322,10 +430,15 @@ public void fill()
                     if (Month == 0) Month = DateTime.Now.Month;
                     if (Day == 0) Day = DateTime.Now.Day;
                     Time = new DateTime(Year, Month, Day, Hour, Min, Sec);
+                    //Odometer = (UInt32)(ramec.Data[1] + ramec.Data[2] * 256 + (ramec.Data[3] & 0x0F) * 256 * 256);
+                    ramec.Data[3] &= 0x0F;
+                    Odometer = BitConverter.ToUInt32(ramec.Data, 1);
+                    result = new CAN_0x065D(Time, Odometer);
                     break;
                 }
             default:
                 break;
         }
+        return result;
     }
 }

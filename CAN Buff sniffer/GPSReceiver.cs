@@ -26,12 +26,25 @@ class GPSReceiver : CarInterface
         DiferencialiGPS = 3
     }
 
-    public struct poloha
+    public struct GGA
     {
-        double Sirka;
-        double Delka;
-        bool Sever;
-        bool Vychod;
+        public poloha Poloha;
+    }
+
+    public struct RMC
+    {
+        public float Speed;
+        public DateTime GpsTime;
+    }
+
+    public class poloha
+    {
+        public double Sirka;
+        public double Delka;
+        public bool Sever;
+        public bool Vychod;
+        public kvalitaSignaluGPS Kvalita;
+
 
         /*public poloha()
         {
@@ -40,6 +53,15 @@ class GPSReceiver : CarInterface
             this.Sever = true;
             this.Vychod = true;
         }*/
+
+        public poloha()
+        {
+            this.Sirka = 0;
+            this.Delka = 0;
+            this.Sever = false;
+            this.Vychod = false;
+            this.Kvalita = kvalitaSignaluGPS.NeurcenaPozice;
+        }
 
         public poloha(string Retezec) // vstupní formáty 4912.2526N 01635.0378E a N4912.2526 E01635.0378
         {
@@ -60,6 +82,7 @@ class GPSReceiver : CarInterface
                 this.Delka = double.Parse(Retezec.Substring(0, Retezec.Length - 1).Replace(".", ","));
                 this.Vychod = (Retezec.Substring(Retezec.Length - 1, 1)) == "E";
             }
+            this.Kvalita = kvalitaSignaluGPS.ZjistenaPozice;
         }
 
         override public string ToString()
@@ -181,8 +204,12 @@ class GPSReceiver : CarInterface
                 break;
             }
             Value value = CarInterface.GrepDataString(line);
-            line = (string)value.data;
-            ParseLine(line);
+            var result =  ParseLine(value);
+            if ((result != null) && (result.GetType() == typeof(GGA)) && (((GGA)result).Poloha.Kvalita != kvalitaSignaluGPS.NeurcenaPozice))
+            {
+                value.data = result;
+                PositionList.Add(value);
+            }
         }
         StopBytes = System.GC.GetTotalMemory(true);
         GC.KeepAlive(PositionList);
@@ -194,11 +221,19 @@ class GPSReceiver : CarInterface
             + "Loading time is " + elapsedMs + " ms", "Loaded", MessageBoxButtons.OK, MessageBoxIcon.Information);
     }
 
-    public Value ParseLine(string Radek)
+    public object ParseLine(string Radek)
     {
-        string[] Elementy = Radek.Split(',');// Parsuj(Radek,',');
-        DateTime Cas = DateTime.Now;
         Value value;
+        value.data = Radek;
+        value.date = DateTime.Now;
+        return ParseLine(value);
+    }
+
+    public object ParseLine(Value value)
+    {
+        string Radek = (string)value.data; 
+        string[] Elementy = Radek.Split(',');// Parsuj(Radek,',');
+        DateTime Cas = Time;
         value.date = Cas;
         value.data = null;
         if (Radek.Contains("$GP"))
@@ -235,7 +270,7 @@ class GPSReceiver : CarInterface
                     // rychlost GPS
                     if (Elementy[7] != "")
                     {
-                        Speed = (int)Math.Round(double.Parse(Elementy[7].Replace('.', ',')) * 1.852);
+                        speed = (int)Math.Round(double.Parse(Elementy[7].Replace('.', ',')) * 1.852);
                     }
                     if (LogFile != null) LogFile.WriteLine(Cas.ToShortDateString() + " " + Cas.ToLongTimeString() + "\t" + Radek);
 
@@ -253,14 +288,6 @@ class GPSReceiver : CarInterface
                         KvalitaSignaluGPS = (kvalitaSignaluGPS)int.Parse(Elementy[6]);
                         // výpočet rychlosti delty polohy
 
-                        if (KvalitaSignaluGPS == kvalitaSignaluGPS.ZjistenaPozice)
-                        {
-                            Value valueToInsert;
-                            valueToInsert.date = GetTime();
-                            valueToInsert.data = Poloha;
-                            PositionList.Add(value);
-                        }
-
                         if (PredchoziPozice == "")
                         {
                             PredchoziPozice = PolohaSTR;
@@ -275,6 +302,13 @@ class GPSReceiver : CarInterface
                             PredchoziPozice = PolohaSTR;
                             Zacatek = DateTime.Now;
                         }
+                        if (KvalitaSignaluGPS == kvalitaSignaluGPS.ZjistenaPozice)
+                        {
+                            value.data = Poloha;
+                        }
+                        GGA gga;
+                        gga.Poloha = Poloha;
+                        return gga;
                     }
                     if (LogFile != null) LogFile.WriteLine(Cas.ToShortDateString() + " " + Cas.ToLongTimeString() + "\t" + Radek);
                     break;
@@ -288,6 +322,8 @@ class GPSReceiver : CarInterface
 
                 case "VTG":
 
+                    break;
+                default:
                     break;
 
             }
@@ -351,7 +387,7 @@ class GPSReceiver : CarInterface
                         // rychlost GPS
                         if (Elementy[7] != "")
                         {
-                            Speed = (int)Math.Round(double.Parse(Elementy[7].Replace('.', ',')) * 1.852);
+                            speed = (int)Math.Round(double.Parse(Elementy[7].Replace('.', ',')) * 1.852);
                         }
                         GPSSoubor.WriteLine(Cas.ToShortDateString() + " " + Cas.ToLongTimeString() + "\t" + Radek);
 
