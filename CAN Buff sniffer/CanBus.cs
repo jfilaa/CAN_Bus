@@ -243,7 +243,17 @@ public void fill()
                 break;
             }
             ramec = new Ramec(line);
-            ParseFrame(ramec);
+            Value value = CarInterface.GrepDataString(line);
+            var result = ParseFrame(ramec);
+            if ((result != null) && (result.GetType() == typeof(CAN_0x02C1)))
+            {
+                if (winkersPrevious != winkers)
+                {
+                    value.data = winkers;
+                    winkerChangeList.Add(value);
+                    winkersPrevious = winkers;
+                }
+            }
         }
         GC.KeepAlive(listOfFrame);
         watch.Stop();
@@ -325,14 +335,6 @@ public void fill()
                     if ((ramec.Data[0] & 2) > 1) winkers = WinkerState.RightWinker;
 
                     result = new CAN_0x02C1(winkers);
-                    if (winkersPrevious != winkers)
-                    {
-                        Value value;
-                        value.date = GetTime();
-                        value.data = winkers;
-                        winkerChangeList.Add(value);
-                        winkersPrevious = winkers;
-                    }
                     break;
                 }
             case 0x0571: // Batery Voltage

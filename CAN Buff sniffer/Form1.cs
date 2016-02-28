@@ -358,23 +358,25 @@ namespace CAN_Buff_sniffer
             DateTime StopWinking;
             if ((gps.PositionList.Count > 0) && (can.winkerChangeList.Count) > 0)
             {
+                int Start = -1;
                 foreach (CarInterface.Value winkerState in can.winkerChangeList)
                 {
                     if (((CanBus.WinkerState)winkerState.data) != CanBus.WinkerState.None)
                     {
-                       StartWinking = winkerState.date;
+                        StartWinking = winkerState.date;
                         state = (CanBus.WinkerState)winkerState.data;
                     }
                     else if (state != CanBus.WinkerState.None)
                     {
                         StopWinking = winkerState.date;
                         // search GPS data for winking
-                        int Start = gps.PositionList.FindIndex(x => x.date.CompareTo(StartWinking) == 0);
-                        if (Start != -1)
+                        Start = gps.PositionList.FindIndex(x => x.date.CompareTo(StartWinking) == 0);
+                        /*if (Start != -1)
                         {
 
-                        }
+                        }*/
                     }
+                    
                 }
             }
         }

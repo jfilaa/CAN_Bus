@@ -45,15 +45,6 @@ class GPSReceiver : CarInterface
         public bool Vychod;
         public kvalitaSignaluGPS Kvalita;
 
-
-        /*public poloha()
-        {
-            this.Sirka = 0;
-            this.Delka = 0;
-            this.Sever = true;
-            this.Vychod = true;
-        }*/
-
         public poloha()
         {
             this.Sirka = 0;
